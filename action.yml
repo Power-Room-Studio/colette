@@ -54,36 +54,37 @@ runs:
       id: prepare_notification
       run: |
         EVENT_TYPE="${{ github.event_name }}"
+        REPO_NAME="${{ github.repository }}"
         TITLE=""
         DESCRIPTION=""
         URL=""
 
         if [ "$EVENT_TYPE" == "push" ]; then
-          TITLE="Push to ${{ github.repository }} [${{ github.ref_name }}]"
+          TITLE="$REPO_NAME: Push to ${{ github.ref_name }}"
           DESCRIPTION="${{ steps.process_commits.outputs.COMMIT_MESSAGE }}"
           URL="${{ github.event.compare }}"
         elif [ "$EVENT_TYPE" == "pull_request" ]; then
-          TITLE="PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          TITLE="$REPO_NAME: PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
           DESCRIPTION="${{ github.event.pull_request.body }}"
           URL="${{ github.event.pull_request.html_url }}"
         elif [ "$EVENT_TYPE" == "issues" ]; then
-          TITLE="Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          TITLE="$REPO_NAME: Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
           DESCRIPTION="${{ github.event.issue.body }}"
           URL="${{ github.event.issue.html_url }}"
         elif [ "$EVENT_TYPE" == "issue_comment" ]; then
-          TITLE="Comment on Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          TITLE="$REPO_NAME: Comment on Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
           DESCRIPTION="${{ github.event.comment.body }}"
           URL="${{ github.event.comment.html_url }}"
         elif [ "$EVENT_TYPE" == "repository_dispatch" ]; then
-          TITLE="Repository Dispatch Event"
+          TITLE="$REPO_NAME: Repository Dispatch Event"
           DESCRIPTION="A repository dispatch event has been triggered."
           URL="${{ github.repository.html_url }}"
         elif [ "$EVENT_TYPE" == "release" ]; then
-          TITLE="Release: ${{ github.event.release.name }}"
+          TITLE="$REPO_NAME: Release: ${{ github.event.release.name }}"
           DESCRIPTION="${{ github.event.release.body }}"
           URL="${{ github.event.release.html_url }}"
         else
-          TITLE="Event: $EVENT_TYPE"
+          TITLE="$REPO_NAME: Event: $EVENT_TYPE"
           DESCRIPTION="An event of type $EVENT_TYPE occurred."
           URL="${{ github.repository.html_url }}"
         fi
