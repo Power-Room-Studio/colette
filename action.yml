@@ -3,7 +3,7 @@ author: 'power-room-studio'
 description: 'A GitHub action for sending a better Discord notification embed, which can also be customized.'
 inputs:
   webhook-url:
-    description: 'The Discord webhook URL this notification will be send to.'
+    description: 'The Discord webhook URL this notification will be sent to.'
     required: true
   msg-content:
     description: 'Message content for the Webhook Message.'
@@ -17,20 +17,13 @@ inputs:
     required: false
     default: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
   ignore-hidden:
-    description: 'Branches that contain the phase `hidden/` in them will be ignored.'
+    description: 'Branches that contain the phrase `hidden/` in them will be ignored.'
     required: false
     default: 'true'
 runs:
   using: "composite"
   steps:
     - name: Process Commits
-      # What we do here:
-      #   - Get and seperate all commit messages with a newline.
-      #   - If the commit message are too big, cut it down.
-      #   - Get how many commits we have through their unique commit ID.
-      #   - Check if we have an actual commit push and not something else (e.g. branch push).
-      #   - Check if our current branch is marked as hidden and the user wants to hide hidden branches.
-      #   - Set all needed job outputs.
       id: process_commits
       run: |
         COMMIT_IDS="${{ join(github.event.commits.*.id, ', ') }}"
@@ -38,7 +31,7 @@ runs:
         COMMITS_COUNT="${#COMMITS_ARRAY[@]}"
         COMMIT_MESSAGE="${{ join(github.event.commits.*.message, '\n') }}"
 
-        if $COMMITS_COUNT == "0" || ${{ contains(github.ref_name, 'hidden/') }} && ${{ inputs.ignore-hidden }} == true; then
+        if [ "$COMMITS_COUNT" == "0" ] || [ "${{ contains(github.ref_name, 'hidden/') }}" == "true" ] && [ "${{ inputs.ignore-hidden }}" == "true" ]; then
           SHOULD_CONTINUE='false'
         else
           SHOULD_CONTINUE='true'
@@ -49,23 +42,71 @@ runs:
         echo "SHOULD_CONTINUE=$SHOULD_CONTINUE" >> $GITHUB_OUTPUT
       shell: bash
     - name: Get Current Time
-      if: steps.process_commits.outputs.SHOULD_CONTINUE == 'true'
       uses: josStorer/get-current-time@master
       id: get_time
     - name: Get User Avatar
-      if: steps.process_commits.outputs.SHOULD_CONTINUE == 'true'
       uses: fjogeleit/http-request-action@master
       id: get_avatar
       with:
         url: "https://api.github.com/users/${{ github.actor }}"
         method: "GET"
+    - name: Prepare Notification
+      id: prepare_notification
+      run: |
+        EVENT_TYPE="${{ github.event_name }}"
+        TITLE=""
+        DESCRIPTION=""
+        
+        if [ "$EVENT_TYPE" == "push" ]; then
+          TITLE="Push to ${{ github.repository }} [${{ github.ref_name }}]"
+          DESCRIPTION="${{ steps.process_commits.outputs.COMMIT_MESSAGE }}"
+        elif [ "$EVENT_TYPE" == "pull_request" ]; then
+          TITLE="PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          DESCRIPTION="${{ github.event.pull_request.body }}"
+        elif [ "$EVENT_TYPE" == "issues" ]; then
+          TITLE="Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          DESCRIPTION="${{ github.event.issue.body }}"
+        elif [ "$EVENT_TYPE" == "issue_comment" ]; then
+          TITLE="Comment on Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}"
+          DESCRIPTION="${{ github.event.comment.body }}"
+        elif [ "$EVENT_TYPE" == "repository_dispatch" ]; then
+          TITLE="Repository Dispatch Event"
+          DESCRIPTION="A repository dispatch event has been triggered."
+        elif [ "$EVENT_TYPE" == "release" ]; then
+          TITLE="Release: ${{ github.event.release.name }}"
+          DESCRIPTION="${{ github.event.release.body }}"
+        else
+          TITLE="Event: $EVENT_TYPE"
+          DESCRIPTION="An event of type $EVENT_TYPE occurred."
+        fi
+
+        echo "TITLE=$TITLE" >> $GITHUB_ENV
+        echo "DESCRIPTION=$DESCRIPTION" >> $GITHUB_ENV
+      shell: bash
     - name: Send Notification
-      if: steps.process_commits.outputs.SHOULD_CONTINUE == 'true'
       uses: fjogeleit/http-request-action@master
       with:
         url: ${{ inputs.webhook-url }}
         method: 'POST'
-        data: '{"content":"${{inputs.msg-content}}","embeds":[{"title":"${{github.repository}} [${{github.ref_name}}]","description":"${{steps.process_commits.outputs.COMMIT_MESSAGE}}","url":"${{github.event.compare}}","color":${{inputs.embed-color}},"footer":{"text":"${{steps.process_commits.outputs.COMMITS_COUNT}} new commit(s)","icon_url":"${{fromJson(steps.get_avatar.outputs.response).avatar_url}}"},"timestamp":"${{steps.get_time.outputs.time}}"}],"username":"${{github.actor}}","avatar_url":"https://media.discordapp.net/attachments/1251912036674310205/1251918009220468797/image.png"}'
+        data: |
+          {
+            "content": "${{ inputs.msg-content }}",
+            "embeds": [
+              {
+                "title": "${{ env.TITLE }}",
+                "description": "${{ env.DESCRIPTION }}",
+                "url": "${{ github.event.compare }}",
+                "color": ${{ inputs.embed-color }},
+                "footer": {
+                  "text": "${{ steps.process_commits.outputs.COMMITS_COUNT }} new commit(s)",
+                  "icon_url": "${{ fromJson(steps.get_avatar.outputs.response).avatar_url }}"
+                },
+                "timestamp": "${{ steps.get_time.outputs.time }}"
+              }
+            ],
+            "username": "${{ github.actor }}",
+            "avatar_url": "https://media.discordapp.net/attachments/1251912036674310205/1251918009220468797/image.png"
+          }
 branding:
   icon: 'bell'
   color: 'blue'
