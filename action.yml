@@ -1,5 +1,5 @@
 name: 'Better Discord Notification'
-author: 'Retr0-01'
+author: 'power-room-studio'
 description: 'A GitHub action for sending a better Discord notification embed, which can also be customized.'
 inputs:
   webhook-url:
@@ -65,7 +65,7 @@ runs:
       with:
         url: ${{ inputs.webhook-url }}
         method: 'POST'
-        data: '{"content":"${{inputs.msg-content}}","embeds":[{"title":"${{github.repository}} [${{github.ref_name}}]","description":"${{steps.process_commits.outputs.COMMIT_MESSAGE}}","url":"${{github.event.compare}}","color":${{inputs.embed-color}},"footer":{"text":"${{steps.process_commits.outputs.COMMITS_COUNT}} new commit(s)","icon_url":"${{inputs.footer-icon}}"},"timestamp":"${{steps.get_time.outputs.time}}"}],"username":"${{github.actor}}","avatar_url":"${{fromJson(steps.get_avatar.outputs.response).avatar_url}}"}'
+        data: '{"content":"${{inputs.msg-content}}","embeds":[{"title":"${{github.repository}} [${{github.ref_name}}]","description":"${{steps.process_commits.outputs.COMMIT_MESSAGE}}","url":"${{github.event.compare}}","color":${{inputs.embed-color}},"footer":{"text":"${{steps.process_commits.outputs.COMMITS_COUNT}} new commit(s)","icon_url":"${{fromJson(steps.get_avatar.outputs.response).avatar_url}}"},"timestamp":"${{steps.get_time.outputs.time}}"}],"username":"${{github.actor}}","avatar_url":"https://media.discordapp.net/attachments/1251912036674310205/1251918009220468797/image.png"}'
 branding:
   icon: 'bell'
   color: 'blue'
